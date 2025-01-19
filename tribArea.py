@@ -6,6 +6,8 @@ from papermodels.paper.annotations import scale_annotations, filter_annotations,
 from decimal import Decimal
 from shapely.geometry import GeometryCollection, MultiPoint, MultiPolygon, Polygon, Point, LineString
 import shapely
+import attr
+
 
 # Function to plot Shapely geometries
 def plot_geometry(ax, geometry, **kwargs):
