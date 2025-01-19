@@ -64,20 +64,19 @@ if uploaded_file is not None:
         ])
 
         # Plot the Voronoi diagram
-        fig, ax = plt.subplots(figsize=(10, 10), dpi=100)
+        fig, ax = plt.subplots(figsize=(10, 10))
 
         # Plot the Voronoi polygons (trib_areas)
         for geometry in trib_areas.geoms:
             if isinstance(geometry, Polygon) and not geometry.is_empty:
-                # Plot the geometry
                 plot_geometry(ax, geometry, color='blue', alpha=0.3, linewidth=1)
 
-                # Calculate and annotate area
+                # Annotate area
                 area = geometry.area
                 centroid = geometry.centroid
                 ax.text(
                     centroid.x, centroid.y,
-                    f"{area:.2f}",  # Format the area to 2 decimal places
+                    f"{area:.2f}",
                     ha='center', va='center', fontsize=8, color='red'
                 )
 
@@ -85,18 +84,12 @@ if uploaded_file is not None:
         for column in column_shapes.geoms:
             ax.plot(column.centroid.x, column.centroid.y, 'ro', label='Column Centroid')
 
-
         # Set aspect ratio and labels
         ax.set_aspect('equal')
         ax.set_xlabel("X (mm)")
         ax.set_ylabel("Y (mm)")
         ax.set_title("Voronoi Diagram with Area Annotations")
 
-        # Save the figure (optional for debugging)
-        fig.savefig("debug_plot.png", bbox_inches="tight", dpi=100)
-
-        # Display the plot in Streamlit
-        st.pyplot(fig, bbox_inches="tight")
-
+        st.pyplot(fig)
     except Exception as e:
         st.error(f"An error occurred: {e}")
