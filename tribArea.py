@@ -64,7 +64,7 @@ if uploaded_file is not None:
         ])
 
         # Plot the Voronoi diagram
-        fig, ax = plt.subplots(figsize=(10, 10))
+        fig, ax = plt.subplots(figsize=(10, 10), dpi=100)
 
         # Plot the Voronoi polygons (trib_areas)
         for geometry in trib_areas.geoms:
@@ -91,7 +91,7 @@ if uploaded_file is not None:
         ax.set_ylabel("Y (mm)")
         ax.set_title("Voronoi Diagram with Area Annotations")
 
-        st.pyplot(fig)
+        st.pyplot(fig, bbox_inches = "tight")
 
     except Exception as e:
         st.error(f"An error occurred: {e}")
