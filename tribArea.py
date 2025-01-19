@@ -44,7 +44,7 @@ if uploaded_file is not None:
 
         # Scale annotations (1:50, convert from points to mm)
         scaled = scale_annotations(annots, Decimal(1 / 72 * 25.4 * 100))
-        st.write("Scaled Annotations:", [annot.to_dict() for annot in scaled])
+        st.write("Scaled Annotations:", [annot for annot in scaled])
 
         # Filter annotations for columns and slab
         columns = filter_annotations(scaled, {"object_type": "Rectangle", "line_weight": 3})
