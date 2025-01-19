@@ -85,13 +85,22 @@ if uploaded_file is not None:
         for column in column_shapes.geoms:
             ax.plot(column.centroid.x, column.centroid.y, 'ro', label='Column Centroid')
 
+        # Set consistent axis limits
+        x_min, y_min, x_max, y_max = slab_shapes.bounds
+        ax.set_xlim(x_min, x_max)
+        ax.set_ylim(y_min, y_max)
+
         # Set aspect ratio and labels
         ax.set_aspect('equal')
         ax.set_xlabel("X (mm)")
         ax.set_ylabel("Y (mm)")
         ax.set_title("Voronoi Diagram with Area Annotations")
 
-        st.pyplot(fig, bbox_inches = "tight")
+        # Save the figure (optional for debugging)
+        fig.savefig("debug_plot.png", bbox_inches="tight", dpi=100)
+
+        # Display the plot in Streamlit
+        st.pyplot(fig, bbox_inches="tight")
 
     except Exception as e:
         st.error(f"An error occurred: {e}")
