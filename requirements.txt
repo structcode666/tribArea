@@ -1,4 +1,4 @@
 streamlit
 matplotlib
 shapely
-https://github.com/StructuralPython/papermodels
+git+https://github.com/StructuralPython/papermodels.git
