@@ -42,6 +42,7 @@ if uploaded_file is not None:
         annots = load_pdf_annotations("temp.pdf")
         st.write("Loaded Annotations:", annots)
 
+
         # Scale annotations (1:50, convert from points to mm)
         scaled = scale_annotations(annots, Decimal(1 / 72 * 25.4 * 100))
         st.write("Scaled Annotations:", [annot for annot in scaled])
@@ -49,6 +50,8 @@ if uploaded_file is not None:
         # Filter annotations for columns and slab
         columns = filter_annotations(scaled, {"object_type": "Rectangle", "line_weight": 3})
         slab = filter_annotations(scaled, {"object_type": "Polygon", "text": "Slab Outline"})
+        st.write("Filtered Columns:", columns)
+        st.write("Filtered Slab:", slab)
 
         # Convert annotations to Shapely geometries
         column_shapes = annotations_to_shapely(columns, as_geometry_collection=True)
