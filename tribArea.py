@@ -32,10 +32,25 @@ st.write("Upload a PDF file containing annotations.")
 
 # File upload
 uploaded_file = st.file_uploader("Upload a PDF file", type=["pdf"])
+
+if uploaded_file is not None:
+    st.write("Uploaded file:", uploaded_file.name)  # Debugging
+
+    # Save the file locally for processing
+    try:
+        with open("temp.pdf", "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        st.write("File successfully written to temp.pdf")
+    except Exception as e:
+        st.error(f"File could not be written: {e}")
+else:
+    st.error("No file uploaded.")
+    
 if uploaded_file is not None:
     # Process the uploaded file
     with open("temp.pdf", "wb") as f:
         f.write(uploaded_file.getbuffer())
+        st.write("File successfully written to temp.pdf")
 
     try:
         # Load annotations
