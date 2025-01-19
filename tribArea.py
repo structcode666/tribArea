@@ -32,13 +32,16 @@ st.write("Upload a PDF file containing annotations.")
 
 # File upload
 uploaded_file = st.file_uploader("Upload a PDF file", type=["pdf"])
-
 if uploaded_file is not None:
-        
-        # Load annotations
-        annots = load_pdf_annotations(uploaded_file)
+    # Process the uploaded file
+    with open("temp.pdf", "wb") as f:
+        f.write(uploaded_file.getbuffer())
 
-        # Scale annotations (1:100, convert from points to mm)
+    try:
+        # Load annotations
+        annots = load_pdf_annotations("temp.pdf")
+
+        # Scale annotations (1:50, convert from points to mm)
         scaled = scale_annotations(annots, Decimal(1 / 72 * 25.4 * 100))
 
         # Filter annotations for columns and slab
@@ -86,6 +89,9 @@ if uploaded_file is not None:
         ax.set_aspect('equal')
         ax.set_xlabel("X (mm)")
         ax.set_ylabel("Y (mm)")
-        ax.set_title("Trib Areas")
+        ax.set_title("Voronoi Diagram with Area Annotations")
 
         st.pyplot(fig)
+
+    except Exception as e:
+        st.error(f"An error occurred: {e}")
