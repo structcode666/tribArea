@@ -33,9 +33,13 @@ st.write("Upload a PDF file containing annotations.")
 # File upload
 uploaded_file = st.file_uploader("Upload a PDF file", type=["pdf"])
 if uploaded_file is not None:
+    # Process the uploaded file
+    with open("temp.pdf", "wb") as f:
+        f.write(uploaded_file.getbuffer())
+
     try:
         # Load annotations
-        annots = load_pdf_annotations(uploaded_file)
+        annots = load_pdf_annotations("temp.pdf")
 
         # Scale annotations (1:50, convert from points to mm)
         scaled = scale_annotations(annots, Decimal(1 / 72 * 25.4 * 100))
