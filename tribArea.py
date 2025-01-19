@@ -85,10 +85,6 @@ if uploaded_file is not None:
         for column in column_shapes.geoms:
             ax.plot(column.centroid.x, column.centroid.y, 'ro', label='Column Centroid')
 
-        # Set consistent axis limits
-        x_min, y_min, x_max, y_max = slab_shapes.bounds
-        ax.set_xlim(x_min, x_max)
-        ax.set_ylim(y_min, y_max)
 
         # Set aspect ratio and labels
         ax.set_aspect('equal')
