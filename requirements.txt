@@ -1,4 +1,4 @@
 streamlit
 matplotlib
 shapely
-papermodels
+papermodels==0.0.19
