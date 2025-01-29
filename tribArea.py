@@ -35,9 +35,7 @@ def scale_pdf(pdf_scale , dpi=72):
     return scaling_factor
 
 # Function to extract wall shapes
-def wall_shapes(pdf_file, pdf_scale):
-    
-    doc = fitz.open(pdf_file)
+def wall_shapes(doc, pdf_scale):
 
     #Scaling Factor#
     scaling_factor = scale_pdf(100, 72)
@@ -73,8 +71,7 @@ def wall_shapes(pdf_file, pdf_scale):
     return wall_shapes
 
 # Function to extract slab shapes
-def slab_shapes(pdf_file, pdf_scale):
-    doc = fitz.open(pdf_file)
+def slab_shapes(doc, pdf_scale):
 
     # Scaling factor for converting from PDF units to mm
     scaling_factor = scale_pdf(100, 72)
@@ -114,7 +111,7 @@ def slab_shapes(pdf_file, pdf_scale):
     return polygons
 
 # Function to extract column shapes
-def column_shapes(pdf_file, pdf_scale):
+def column_shapes(doc, pdf_scale):
     """
     Converts rectangle annotations with a line width of 3.0 in a PDF into Shapely polygons.
     
@@ -125,7 +122,6 @@ def column_shapes(pdf_file, pdf_scale):
     Returns:
         list: A list of Shapely Polygon objects representing the rectangles.
     """
-    doc = fitz.open(pdf_file)
 
     # Scaling factor for converting from PDF units to mm
     scaling_factor = scale_pdf(100, 72)
@@ -252,11 +248,18 @@ st.title("Trib Area Viewer")
 uploaded_file = st.file_uploader("Upload a PDF file", type=["pdf"])
 
 if uploaded_file:
+
+    # Read the uploaded file into memory as bytes
+    pdf_bytes = uploaded_file.read()
+
+    # Open the PDF from bytes instead of treating it as a file path
+    doc = fitz.open("pdf", pdf_bytes)  
+
     scale_factor = scale_pdf(100, 72)
     
-    slab = slab_shapes(uploaded_file, scale_factor)
-    columns = column_shapes(uploaded_file, scale_factor)
-    walls = wall_shapes(uploaded_file, scale_factor)
+    slab = slab_shapes(doc, scale_factor)
+    columns = column_shapes(doc, scale_factor)
+    walls = wall_shapes(doc, scale_factor)
     
     if slab and columns and walls:
         voronoi_polygons = create_voronoi(slab, columns, walls)
