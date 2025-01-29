@@ -2,3 +2,4 @@ streamlit
 matplotlib
 shapely
 papermodels==0.0.19
+pymupdf
