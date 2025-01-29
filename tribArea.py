@@ -1,98 +1,100 @@
 import streamlit as st
+import fitz  # PyMuPDF
+import pandas as pd
 import matplotlib.pyplot as plt
-from papermodels.paper.pdf import load_pdf_annotations
-from papermodels.paper.plot import plot_annotations
-from papermodels.paper.annotations import scale_annotations, filter_annotations, annotations_to_shapely
-from decimal import Decimal
-from shapely.geometry import GeometryCollection, MultiPoint, MultiPolygon, Polygon, Point, LineString
-import shapely
+from shapely.geometry import Polygon, Point, LineString, MultiPoint
+from shapely.ops import voronoi_diagram
+import more_itertools
+import io
 
-# Function to plot Shapely geometries
-def plot_geometry(ax, geometry, **kwargs):
-    """Plot Shapely geometry on a Matplotlib Axes."""
-    if isinstance(geometry, Point):
-        ax.plot(geometry.x, geometry.y, 'o', **kwargs)
-    elif isinstance(geometry, LineString):
-        x, y = geometry.xy
-        ax.plot(x, y, **kwargs)
-    elif isinstance(geometry, Polygon):
-        x, y = geometry.exterior.xy
-        ax.plot(x, y, **kwargs)
-        # Plot holes if present
-        for interior in geometry.interiors:
-            x_int, y_int = interior.xy
-            ax.plot(x_int, y_int, linestyle='--', color=kwargs.get("color", "gray"))
-    elif isinstance(geometry, MultiPolygon) or isinstance(geometry, GeometryCollection):
-        for geom in geometry.geoms:
-            plot_geometry(ax, geom, **kwargs)
+# Scaling function
+def scale_pdf(pdf_scale, dpi=72):
+    inches_to_mm = 25.4
+    pixel_size_mm = inches_to_mm / dpi
+    return pixel_size_mm * pdf_scale
 
-# Streamlit app
-st.title("Trib Area Viewer")
-st.write("Upload a PDF file containing annotations.")
+# Function to extract wall shapes
+def wall_shapes(doc, scaling_factor):
+    wall_shapes = []
+    for page in doc:
+        for drawing in page.get_drawings():
+            if drawing['width'] == 2.0:
+                points = [(seg[1][0], seg[1][1]) for seg in drawing.get('items', [])]
+                unique_points = [points[0]] + [p for i, p in enumerate(points[1:]) if p != points[i]]
+                scaled_points = [(x * scaling_factor, y * scaling_factor) for x, y in unique_points]
+                wall_shapes.append(Polygon(LineString(scaled_points)))
+    return wall_shapes
 
-# File upload
+# Function to extract slab shapes
+def slab_shapes(doc, scaling_factor):
+    for page in doc:
+        for drawing in page.get_drawings():
+            if drawing['width'] == 1.0:
+                points = [(seg[1][0], seg[1][1]) for seg in drawing.get('items', [])]
+                unique_points = [points[0]] + [p for i, p in enumerate(points[1:]) if p != points[i]]
+                scaled_points = [(x * scaling_factor, y * scaling_factor) for x, y in unique_points]
+                return Polygon(scaled_points)
+    return None
+
+# Function to extract column shapes
+def column_shapes(doc, scaling_factor):
+    columns = []
+    for page in doc:
+        for drawing in page.get_drawings():
+            if drawing['width'] == 3.0 and drawing.get("rect"):
+                x0, y0, x1, y1 = drawing["rect"]
+                points = [(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)]
+                scaled_points = [(x * scaling_factor, y * scaling_factor) for x, y in points]
+                columns.append(Polygon(scaled_points))
+    return columns
+
+# Function to create Voronoi diagram
+def create_voronoi(slab_outline, columns, walls):
+    column_centroids = [(col.centroid.x, col.centroid.y) for col in columns]
+    wall_points = list(more_itertools.flatten([list(wall.exterior.coords) for wall in walls])) if walls else []
+    combined_points = column_centroids + wall_points
+    voronoi_source = MultiPoint(combined_points)
+    voronoi_polygons = voronoi_diagram(voronoi_source)
+    return [slab_outline.intersection(poly) for poly in voronoi_polygons.geoms]
+
+# Function to generate the DataFrame
+def get_voronoi_areas(columns, voronoi_polygons):
+    return pd.DataFrame({"Column_Tag": [f"C_{i}" for i in range(len(columns))], "Area (m²)": [poly.area / 1e6 for poly in voronoi_polygons]})
+
+# Streamlit UI
+st.title("Building Elements Analyzer")
 uploaded_file = st.file_uploader("Upload a PDF file", type=["pdf"])
 
-if uploaded_file is not None:
-    # Process the uploaded file
-    with open("temp.pdf", "wb") as f:
-        f.write(uploaded_file.getbuffer())
-
-    try:
-        # Load annotations
-        annots = load_pdf_annotations("temp.pdf")
-
-        # Scale annotations (1:100, convert from points to mm)
-        scaled = scale_annotations(annots, Decimal(1 / 72 * 25.4 * 100))
-
-        # Filter annotations for columns and slab
-        columns = filter_annotations(scaled, {"object_type": "Rectangle", "line_weight": 3})
-        slab = filter_annotations(scaled, {"object_type": "Polygon", "text": "Slab Outline"})
-
-        # Convert annotations to Shapely geometries
-        column_shapes = annotations_to_shapely(columns, as_geometry_collection=True)
-        slab_shapes = annotations_to_shapely(slab, as_geometry_collection=True)
-
-        # Create column centroids and Voronoi polygons
-        column_centroids = MultiPoint([column.centroid for column in column_shapes.geoms])
-        vor_polys = shapely.voronoi_polygons(column_centroids)
-
-        # Clip Voronoi polygons to slab shape
-        trib_areas = MultiPolygon([
-            vor_poly.intersection(slab_shapes)
-            for vor_poly in vor_polys.geoms
-            if not vor_poly.is_empty
-        ])
-
-        # Plot the Voronoi diagram
+if uploaded_file:
+    doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+    scale_factor = scale_pdf(100, 72)
+    
+    slab = slab_shapes(doc, scale_factor)
+    columns = column_shapes(doc, scale_factor)
+    walls = wall_shapes(doc, scale_factor)
+    
+    if slab and columns:
+        voronoi_polygons = create_voronoi(slab, columns, walls)
+        area_df = get_voronoi_areas(columns, voronoi_polygons)
+        
+        # Plot elements
         fig, ax = plt.subplots(figsize=(10, 10))
-
-        # Plot the Voronoi polygons (trib_areas)
-        for geometry in trib_areas.geoms:
-            if isinstance(geometry, Polygon) and not geometry.is_empty:
-                # Plot the geometry
-                plot_geometry(ax, geometry, color='blue', alpha=0.3, linewidth=1)
-
-                # Calculate and annotate area
-                area = geometry.area
-                centroid = geometry.centroid
-                ax.text(
-                    centroid.x, centroid.y,
-                    f"{area:.2f}",  # Format the area to 2 decimal places
-                    ha='center', va='center', fontsize=8, color='red'
-                )
-
-        # Plot column centroids
-        for column in column_shapes.geoms:
-            ax.plot(column.centroid.x, column.centroid.y, 'ro', label='Column Centroid')
-
-        # Set aspect ratio and labels
-        ax.set_aspect('equal')
-        ax.set_xlabel("X (mm)")
-        ax.set_ylabel("Y (mm)")
-        ax.set_title("Trib Areas")
-
+        for col in columns:
+            x, y = col.exterior.xy
+            ax.fill(x, y, color="gray", alpha=0.7, label="Column")
+        for wall in walls:
+            x, y = wall.exterior.xy
+            ax.plot(x, y, color="black", linewidth=2, label="Wall")
+        for poly in voronoi_polygons:
+            x, y = poly.exterior.xy
+            ax.fill(x, y, color="orange", alpha=0.3)
+        x, y = slab.exterior.xy
+        ax.fill(x, y, color="lightblue", alpha=0.5, label="Slab")
+        ax.legend()
         st.pyplot(fig)
-
-    except Exception as e:
-        st.error(f"An error occurred: {e}")
+        
+        # Display and download area data
+        st.write("### Voronoi Cell Areas")
+        st.dataframe(area_df)
+        csv = area_df.to_csv(index=False).encode('utf-8')
+        st.download_button("Download CSV", csv, "voronoi_areas.csv", "text/csv")
